@@ -1,0 +1,493 @@
+---
+title: "Distribution of Social Assistance in the city of Bandung in 2022"
+date: "2024-06-14"
+author: |
+  - Rendra Dwi Prasetyo - 2602199960
+  - Muhamad Hasan Firdaus - 2602157900
+  - Yassar Annabil - 2602207363
+output:
+  html_document: default
+  pdf_document: default
+warning: false
+---
+
+
+### **A. Introduction**
+Aligned with the **Sustainable Development Goals (SDGs), particularly SDG 1: No Poverty**, this report examines the distribution of social assistance in Bandung City in 2022. As one of the major urban centers in Indonesia, Bandung faces significant challenges in addressing poverty. One common governmental strategy to tackle this issue is through the provision of social assistance (Bansos).
+
+However, it raises *questions about how the government distributes this social assistance and does the Bandung city government act based on data?* To answer these questions, we examine the relevance of the dataset mapping poverty distribution in Bandung city with the distribution map of social assistance carried out by the Bandung city government.
+
+This analysis is crucial for understanding the effectiveness of the social assistance programs implemented by the Bandung government in identifying and reaching areas (districts/subdistricts) that require additional attention and resources.
+
+So the **focus of this report** is twofold: examining the poverty distribution map in Bandung City and assessing how the Bandung city government distributes social assistance. By exploring and analyzing data through descriptive statistics, data grouping, and visualization, this report aims to provide a comprehensive overview of social assistance distribution and poverty distribution in Bandung City.
+
+Understanding these dynamics is essential for policymakers and relevant agencies to design and implement more effective and equitable social assistance policies. The findings are expected to guide targeted interventions, ensuring that aid reaches those most in need and contributes to the broader goal of poverty alleviation in Bandung City, in line with SDG 1: No Poverty.
+
+
+
+```{r message=FALSE, warning=FALSE, echo = FALSE}
+# Library
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = 'center', out.width = '100%')
+```
+
+
+**==================================================================================================================**
+
+### **B. Data Description**
+Our dataset consists of two datasets obtained separately from the Bandung city government website.
+
+- **First dataset** "[2022 data on poverty distribution in Bandung city](http://satudata.bandung.go.id/dataset/sebaran-kemiskinan-di-kota-bandung/resource/d0b8a47f-e630-4f95-afc7-d193de6a0d2c)" contains 151 rows x 6 columns with the following variables:
+  - **Kode Kecamatan**: district code in Bandung city 
+      - Data type: character (chr)
+      - Description: This variable lists the district codes in Bandung city
+  - **Kecamatan**: district in Bandung city
+      - Data type: character (chr)
+      - Description: This variable lists the names of districts in Bandung city.
+  - **Kode Kelurahan**: sub-district code in Bandung city
+      - Data type: character (chr)
+      - Description: This variable lists the sub-district codes in Bandung city.
+  - **Kelurahan**: sub-district in Bandung city
+      - Data type: character (chr)
+      - Description: This variable lists the names of sub-districts in Bandung city.
+  - **Jumlah keluarga miskin**: number of poor families per district
+      - Data type: integer (int)
+      - Description: This variable indicates the number of poor families in each district.
+  - **Jumlah Individu**: number of individuals per district
+      - Data type: integer (int)
+      - Description: This variable indicates the number of individuals in each district.
+
+
+- **Second dataset** "[2022 data on distribution of social assistance beneficiaries (KPM Bansos)](http://satudata.bandung.go.id/dataset/jumlah-keluarga-penerima-manfaat-kpm-bansos-di-kota-bandung/resource/2cca5fb9-2762-491e-97ee-5b638f5aa891)" consists of 90 rows x 4 columns with the following variables:
+  - **Kode Kecamatan**: district code in Bandung city
+      - Data type: character (chr)
+      - Description: This variable lists the district codes of social assistance beneficiaries in Bandung city.
+  - **Kecamatan**: district in Bandung city
+      - Data type: character (chr)
+      - Description: This variable lists the names of districts receiving social assistance in Bandung city.
+  - **Jenis Bansos** (Type of Social Assistance):
+      - Unique values (types of social assistance):
+        - **BPNT**: Non-Cash Food Assistance
+        - **PBI-JK**: Recipients of Health Insurance Premium Assistance
+        - **PKH**: Program Keluarga Harapan (Family Hope Program)
+      - Data type: integer (int)
+      - Description: This variable lists the number of beneficiary families (KPM Bansos) in Bandung city according to the type of social assistance and their respective districts.
+
+
+- **Relevant Context :** 
+This data is highly relevant in the context of poverty alleviation efforts in Bandung City. Detailed information on the number of poor residents in each sub-district and district allows the government and relevant stakeholders to identify priority areas requiring greater attention and intervention. It enables the design of targeted policies and programs based on specific poverty data and facilitates the evaluation of poverty alleviation program effectiveness by comparing poverty data across different years.
+
+<details>
+    <summary>Show Code of Data Description </summary>
+```{r}
+# Dataset 1
+df_sebaran <- read.csv("tahun-2022---data-sebaran-kemiskinan-di-kota-bandung.csv")
+# Dataset 2
+df_bantuan <- read.csv("tahun-2022---data-sebaran-kpm-bansos.csv")
+
+kable(str(df_sebaran))
+
+kable(str(df_bantuan))
+```
+</details>
+
+
+<details>
+    <summary>Show Dataset 1 & 2 </summary>
+**Dataset 1**
+```{r}
+kable(df_sebaran)
+```
+**Dataset 2**
+```{r}
+kable(df_bantuan)
+```
+
+
+</details>
+
+**==================================================================================================================**
+
+
+
+
+
+### **C. Data Preprocessing:**
+- **1. Data Quality Check:** During the preprocessing stage, we conducted checks on data quality such as missing values, duplicates, filtering symbols, or correcting data format errors initially. **As a result,** our dataset is already sufficiently clean, so there is no need for us to handle these issues. And below is a table of results from checking data quality 
+
+<details>
+      <summary style="margin-left: 50px;">Show code</summary>
+```{r message=FALSE, warning=FALSE}
+
+# Fungsi mengecek kualitas data
+check_data_quality <- function(df, df_name) {
+  results <- data.frame(
+    Test = c("Missing Values", "Duplicate Rows", "Incorrect Data Formats"),
+    Result = c(0, 0, 0)
+  )
+  
+  # Chek missing values
+  missing_values <- sum(is.na(df))
+  results$Result[1] <- ifelse(missing_values > 0, 1, 0)
+  
+  # Chek data yang duplikat
+  duplicate_rows <- nrow(df[duplicated(df), ])
+  results$Result[2] <- ifelse(duplicate_rows > 0, 1, 0)
+  
+  # Chek untuk formats data yang salah
+  num_cols <- sapply(df, is.numeric)
+  incorrect_formats <- FALSE
+  
+  for (col in names(df)[num_cols]) {
+    if (any(!grepl("^-?\\d+(\\.\\d+)?$", as.character(df[[col]])), na.rm = TRUE)) {
+      incorrect_formats <- TRUE
+      break
+    }
+  }
+  
+  results$Result[3] <- ifelse(incorrect_formats, 1, 0)
+  
+  # Buat data frame untuk hasil
+  # Yes --> ada kesalahan bentuk data
+  # None --> data bersih
+  result_df <- data.frame(
+    Test = results$Test,
+    Result = ifelse(results$Result == 1, "Yes", "None")
+  )
+  
+  return(kable(result_df))
+}
+
+```
+</details>
+
+```{r}
+check_data_quality(df_bantuan, "df_sebaran")
+check_data_quality(df_sebaran, "df_bantuan")
+```
+
+
+
+
+- **2. Dimensionality Reduction**  : We removed several columns/variables such as "kode kecamatan" and" "kode keluarahan" because these variables have a one-to-one relationship (each "kode kecamatan" uniquely corresponds to one "nama kecamatan", and similarly for "kode kelurahan"). Therefore, we consider these columns redundant from a data storage perspective. We only kept the variables "Nama kelurahan" and "Nama kecamatan" because from a community perspective, people are more familiar with names rather than codes, and removing these columns does not significantly impact our EDA goals. 
+
+```{r, echo=FALSE}
+df_bantuan_before <- df_bantuan
+df_sebaran_before <- df_sebaran
+```
+
+```{r, echo=FALSE}
+# Dimensionality Reduction
+df_bantuan_after <- subset(df_bantuan, select = -c(Kode.Kecamatan))
+df_sebaran_after <- subset(df_sebaran, select = -c(Kode.Kecamatan, Kode.Kelurahan))
+```
+
+<details>
+      <summary style="margin-left: 50px;">Show dataset after dimensionality reduction</summary>
+#####    - Dataset 1 after dimensionality reduction
+```{r}
+kable(head(df_bantuan_after))
+```
+
+
+#####    - Dataset 2 after dimensionality reduction
+```{r}
+kable(head(df_sebaran_after))
+```
+</details>
+
+- **3. Grouping**: In dataset 1, the data is distributed based on sub-district names("Nama kelurahan"), while dataset 2 provides information based on district names only (nama kecamatan). Therefore, we performed grouping for dataset 1 based on "Nama kecamatan". This means that the numerical variables in each row will be summed up according to "nama kecamatan". Here is dataset 1 after performing the grouping.
+
+<details>
+      <summary style="margin-left: 50px;">Show code</summary>
+```{r message=FALSE, warning=FALSE}
+# Mengelompokkan berdasarkan Kecamatan dan menghitung jumlah keluarga miskin dan jumlah individu untuk setiap kecamatan hanya untuk kolom numerik
+df_sebaran_baru <- df_sebaran_after %>%
+  group_by(Kecamatan) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+
+df_sebaran_baru <- df_sebaran_baru %>%
+  arrange(Jumlah.Keluarga.Miskin)
+```
+</details>
+
+```{r}
+kable(head(df_sebaran_baru))
+```
+
+
+- **4. Splitting data**: In dataset 2, there is a column/variable named "Jenis Bantuan" which contains 3 unique values ("BPNT", "PBI-JK", "PKH"). We then transform each unique value into a separate new feature as shown in the following table: 
+
+<details>
+      <summary style="margin-left: 50px;">Show code</summary>
+```{r message=FALSE, warning=FALSE}
+# Membuat dataframe baru 
+# pivot table untuk menghitung jumlah KPM berdasarkan jenis-jenis bansos yang tersedia untuk setiap kecamatan
+df_bantuan_baru <- aggregate(Jumlah.KPM ~ Kecamatan + `Jenis.Bansos`, data = df_bantuan_after, sum)
+
+# Membuat pivot table menggunakan spread
+df_bantuan_baru <- spread(df_bantuan_baru, key = `Jenis.Bansos`, value = Jumlah.KPM, fill = 0)
+
+# Menambahkan kolom Total KPM
+df_bantuan_baru$Total.KPM <- rowSums(df_bantuan_baru[, -1])
+
+```
+</details>
+
+```{r}
+kable(head(df_bantuan_baru)) 
+```
+
+
+
+- **5. Data Merging**: We performed the merging of the two datasets using the union method because we have already aligned the columns and rows through several preprocessing steps beforehand. This merging resulted in a new dataframe named "data_merged" as follows.
+
+<details>
+      <summary style="margin-left: 50px;">Show code</summary>
+```{r}
+# Menggabungkan kedua data frame secara union
+df_merged <- merge(df_sebaran_baru, df_bantuan_baru, by = "Kecamatan")
+```
+</details>
+
+```{r}
+kable(df_merged)
+```
+
+**==================================================================================================================**
+
+
+
+### **D. Data Exploration:**
+
+Examining summary statistics of important features such as district names("nama kecamatan"), and checking the number of rows and columns to understand the data structure.
+<details>
+    <summary >Show Code </summary>
+```{r message=FALSE, warning=FALSE}
+# eksplor/analisis berdasar data yang sudah di process sebelumnya
+library(psych)
+
+kable(describe(df_merged))
+```
+The above statistical description is useful for understanding the data count, mean, median, minimum and maximum values, and also includes information about data skewness.
+
+```{r}
+# Menghitung jumlah baris dan kolom untuk df_merged
+n1 = nrow(df_merged)
+nn1 = ncol(df_merged)
+
+# Mencetak jumlah baris dan kolom
+cat("Jumlah Baris x Kolom\n")
+cat( n1, " x ", nn1, "\n")
+```
+
+```{r}
+# Menghitung jumlah kecamatan yang ada
+jumlah_kecamatan <- length(unique(df_merged$Kecamatan))
+cat("Jumlah kecamatan:", jumlah_kecamatan, "\n")
+
+# menampilkan daftar kecamatan 
+daftar_kecamatan <- unique(df_merged$Kecamatan)
+cat("Daftar kecamatan:\n")
+print(daftar_kecamatan)
+```
+
+```{r}
+# #jenis-jenis bansos yang diterima KPM 
+jenis_bansos <- unique(df_bantuan$`Jenis.Bansos`)
+
+# print
+cat("Jenis-jenis Bansos yang Tersedia:\n")
+for (bansos in jenis_bansos) {
+  cat(bansos, "\n")
+}
+```
+
+
+```{r}
+# Menghitung total jumlah keluarga miskin
+total_keluarga_miskin <- sum(df_merged$Jumlah.Keluarga.Miskin, na.rm = TRUE)
+cat("Jumlah seluruh keluarga miskin:", total_keluarga_miskin)
+```
+
+```{r}
+# Menghitung total bantuan yang diberikan di kota bandung
+total_Bantuan <- sum(df_merged$Total.KPM, na.rm = TRUE)
+cat("Jumlah bantuan yang diberikan di kota bandung:", total_Bantuan)
+```
+</details>
+
+Data visualizations
+kami membuat 6 visualisasi barplot :
+
+#### 1. Comparing poverty levels across each district.
+<details>
+    <summary >Show Code </summary>
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+# Sorting dataframe berdasarkan 'Jumlah Keluarga Miskin' secara descending
+df_merged_sorted <- arrange(df_merged, desc(`Jumlah.Keluarga.Miskin`))
+
+# Plot
+p1 <- plot_ly(df_merged_sorted, x = ~reorder(Kecamatan, Jumlah.Keluarga.Miskin), 
+              y = ~Jumlah.Keluarga.Miskin, type = 'bar', marker = list(color = ~Jumlah.Keluarga.Miskin, colorscale = 'Reds')) %>%
+  layout(title = 'Jumlah Kemiskinan berdasarkan setiap Kecamatan',
+         xaxis = list(title = 'Kecamatan (district)', tickangle = -90),
+         yaxis = list(title = 'Jumlah Keluarga Miskin'))
+```
+</details>
+```{r}
+p1
+```
+
+#### Interpretation : 
+      - This bar plot visualization displays the number of poor families in each district to help identify districts with the highest poverty levels, which can prioritize government interventions in distributing aid.
+      - Among all the districts in the data, it is noted that Bojongloa Kaler district has the highest poverty rate (calculated per family), while Sumur Bandung district has the lowest poverty rate.
+      - The colors in the bar plot also indicate the severity of poverty levels; darker colors represent higher numbers of poverty.
+      - There is a significant disparity across Bandung city, as some districts differ greatly in the number of poor families. For example, Sumur Bandung district has 3,165 poor families, whereas Bojongloa Kaler district has the highest with 23,910 poor families. This difference of 20,745 families between these two districts highlights substantial socioeconomic disparities and variations across Bandung city.
+      
+#### 2. Comparing the number of Assistance (PKH, BPNT, PBI-JK) per district.
+<details>
+    <summary >Show Code </summary>
+```{r}
+# Library tambahan
+library(tidyr)
+library(patchwork)
+
+
+# Scatter plot untuk BPNT vs Jumlah Keluarga Miskin
+plot1 <- ggplot(df_merged, aes(x = Jumlah.Keluarga.Miskin, y = BPNT)) +
+  geom_point(color = "blue") +
+  labs(title = "BPNT vs Jumlah Keluarga Miskin",
+       x = "Jumlah Keluarga Miskin",
+       y = "Jumlah Penerima BPNT") +
+  theme_minimal()
+
+# Scatter plot untuk PKH vs Jumlah Keluarga Miskin
+plot2 <- ggplot(df_merged, aes(x = Jumlah.Keluarga.Miskin, y = PKH)) +
+  geom_point(color = "green") +
+  labs(title = "PKH vs Jumlah Keluarga Miskin",
+       x = "Jumlah Keluarga Miskin",
+       y = "Jumlah Penerima PKH") +
+  theme_minimal()
+
+# Scatter plot untuk PBI-JK vs Jumlah Keluarga Miskin
+plot3 <- ggplot(df_merged, aes(x = Jumlah.Keluarga.Miskin, y = `PBI-JK`)) +
+  geom_point(color = "orange") +
+  labs(title = "PBI-JK vs Jumlah Keluarga Miskin",
+       x = "Jumlah Keluarga Miskin",
+       y = "Jumlah Penerima PBI-JK") +
+  theme_minimal()
+
+# Menampilkan plot dalam satu tampilan menggunakan patchwork 
+
+```
+</details>
+```{r}
+(plot1 / plot2 / plot3 ) + plot_layout(ncol = 2)
+```
+
+
+#### Explanation : 
+      - X-axis = Number of Poor Families
+      - Y-axis = Number of Assistance (BPNT, PBI-JK, PKH)
+      - Blue dots represent the number of BPNT assistance received
+      - Green dots represent the number of PKH assistance received
+      - Orange dots represent the number of PBI-JK assistance received
+
+From the scatter plot above, it clearly shows a strong positive correlation pattern, where the amount of assistance increases for districts (kecamatan) with higher levels of poverty.
+
+      
+
+```{r, echo=FALSE}
+# Menambahkan kolom Total Bantuan
+df_merged_baru <- df_merged %>%
+  mutate(Total.Bantuan = BPNT + `PBI-JK` + PKH)
+```
+
+<details>
+    <summary >Show Code </summary>
+```{r}
+
+# model linear
+model <- lm(Total.Bantuan ~ Jumlah.Keluarga.Miskin, data = df_merged_baru)
+df_merged_baru$fit <- predict(model)
+
+# Scatter plot dengan garis linear 
+p2 <- plot_ly(df_merged_baru, x = ~Jumlah.Keluarga.Miskin, y = ~Total.Bantuan, type = 'scatter', mode = 'markers', 
+        marker = list(color = 'blue'), text = ~Kecamatan, hoverinfo = 'text') %>%
+  add_trace(x = ~Jumlah.Keluarga.Miskin, y = ~fit, type = 'scatter', mode = 'lines', line = list(color = 'red')) %>%
+  layout(title = 'Scatter Plot: Korelasi Jumlah Keluarga Miskin dengan Total bantuan yang diberikan',
+         xaxis = list(title = 'Jumlah Keluarga Miskin'),
+         yaxis = list(title = 'Jumlah Total Bantuan'))
+```
+</details>
+```{r}
+p2
+```
+
+#### Explanation : 
+- This scatter plot explores the relationship between the number of poor families and the total amount of assistance received (sum of all types of assistance), aiming to assess whether the distribution of aid aligns with the needs. From the scatter plot and the linear trend line, it can be observed that the distribution of assistance appears appropriate, as districts with more poor families receive a larger amount of assistance.
+
+**==================================================================================================================**
+
+
+### **E. Statistical Analysis:**
+In the statistical analysis, we used Pearson correlation analysis to measure the strength and direction of the linear relationship between two continuous variables. In this context, we calculated the correlation coefficients between the number of poor families and 'total_assistance', as well as between the number of poor families and each type of assistance ('PKH', 'BPNT', 'PBI-JK'). The results are shown in the table below:
+<details>
+  <summary>show code</summary>
+```{r}
+correlation <- cor(df_merged %>% select(Jumlah.Keluarga.Miskin, BPNT, PKH, `PBI-JK`, Total.KPM), use = "complete.obs")
+```
+</details>
+
+```{r}
+kable(correlation)
+```
+
+
+
+#### Explanation : 
+- The analysis results show a very strong and positive correlation between the number of poor families and the amount of assistance (r = 0.998, p-value < 0.001). This indicates that as the number of poor families increases in a district, the amount of assistance provided also increases. Similarly strong correlations were found between the number of poor families and each type of assistance ('PKH': r = 0.990, p-value = 0.001; 'BPNT': r = 0.998, p-value < 0.001; 'PBI-JK': r = 0.998, p-value < 0.001).
+
+**==================================================================================================================**
+
+
+
+### **F. Discussion:**
+The results of this statistical analysis indicate that social assistance programs in Bandung City can be considered **effective in targeting districts that are most in need**. The strong correlation between the number of poor families and the amount of assistance suggests that aid is allocated proportionally based on poverty levels in each district. Additionally, the strong correlations between the number of poor families and each type of assistance indicate that all types of assistance (PKH, BPNT, PBI-JK) contribute effectively to targeting poor families.
+
+These findings align with the positive linear relationship observed in the scatter plot we created earlier, showing that there is a direct relationship between the number of poor families per district and the amount of assistance provided.
+
+From our analysis results, it is evident that the Bandung government is implementing data-driven policies. They utilize poverty distribution maps at the district level to tailor the allocation of assistance to each district accordingly. This approach ensures that resources are directed where they are most needed, reflecting a strategic and informed approach to social assistance distribution.
+
+However, this analysis only measures the linear relationship between the variables of social assistance and the distribution of poor families across districts. Other factors outside the scope of the available dataset, such as community participation rates, service quality, and the impact of assistance on family well-being, were not considered in this analysis.
+
+
+**==================================================================================================================**
+
+
+### **G. Conclusion:**
+
+In conclusion, the analysis of social assistance distribution in Bandung City reveals that these programs are not only well-targeted but also effective in reaching the most impoverished areas. This alignment with the Sustainable Development Goal of No Poverty underscores the city government's commitment to addressing socio-economic disparities. Moving forward, continuous monitoring and evaluation will be crucial to ensure these efforts remain responsive to evolving community needs and contribute effectively to long-term poverty alleviation strategies.
+
+
+**==================================================================================================================**
+
+### **H. Refrence:**
+- http://satudata.bandung.go.id/dataset/sebaran-kemiskinan-di-kota-bandung/resource/d0b8a47f-e630-4f95-afc7-d193de6a0d2c
+- http://satudata.bandung.go.id/dataset/jumlah-keluarga-penerima-manfaat-kpm-bansos-di-kota-bandung/resource/2cca5fb9-2762-491e-97ee-5b638f5aa891 
+
+
+**==================================================================================================================**
+
+
+
+
+
+
+
